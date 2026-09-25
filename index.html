@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>查询订阅率</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body style="font-family: sans-serif; padding: 20px; max-width: 480px; margin: 0 auto;">
+  <h3>查询订阅率</h3>
+
+  <p>作品号：<input id="novel_id" value="10381999" style="width: 100%; padding: 8px;"></p>
+  <p>读者号：<input id="reader_id" style="width: 100%; padding: 8px;"></p>
+  <button onclick="submitQuery()" style="width: 100%; padding: 10px; margin-top: 10px;">提交查询</button>
+
+  <div id="result" style="margin-top: 20px; line-height: 1.6;"></div>
+
+  <script>
+    const SUPABASE_URL = "https://ebayglkyzyjvlkyurdmy.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImViYXlnbGt5enlqdmxreXVyZG15Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzNDk2MzMsImV4cCI6MjEwNTkyNTYzM30.87NDwidVzcNuO2w3RkI9Enu8lhMnSFsTf-yWBNS4fRw";
+
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    async function submitQuery() {
+      const novel_id = document.getElementById('novel_id').value.trim();
+      const reader_id = document.getElementById('reader_id').value.trim();
+      const result = document.getElementById('result');
+
+      if (!novel_id || !reader_id) {
+        result.innerHTML = '请填写作品号和读者号';
+        return;
+      }
+
+      result.innerHTML = '正在查询...';
+
+      const { data: existing } = await client
+        .from('queries')
+        .select('*')
+        .eq('novel_id', novel_id)
+        .eq('reader_id', reader_id)
+        .maybeSingle();
+
+      if (existing && existing.status === 'done') {
+        showResult(existing);
+        return;
+      }
+
+      if (existing && existing.status === 'pending') {
+        result.innerHTML = '已提交，请明天 18:00 后再来查看。';
+        return;
+      }
+
+      const { error } = await client
+        .from('queries')
+        .insert({ novel_id, reader_id });
+
+      if (error) {
+        result.innerHTML = '提交失败：' + error.message;
+        return;
+      }
+
+      result.innerHTML = '已提交，请明天 18:00 后再来查看。';
+    }
+
+    function showResult(row) {
+      const result = document.getElementById('result');
+      if (row.qualified) {
+        result.innerHTML = '<p>恭喜！订阅率达标，感谢支持！</p>';
+        /*
+        如果想改成显示图片，把上面那行换成：
+        result.innerHTML = '<p>达标！</p><img src="qualified.jpg" style="max-width:100%;">';
+        */
+      } else if (row.rate !== null) {
+        result.innerHTML = '订阅率 ' + (row.rate * 100).toFixed(2) + '%，未达标';
+      } else {
+        result.innerHTML = '未查到该读者号';
+      }
+    }
+  </script>
+</body>
+</html>
