@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>查询订阅率</title>
+  <title>查询</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; }
@@ -266,7 +266,7 @@
 </head>
 <body>
   <div class="card">
-    <h1>查询订阅率</h1>
+    <h1>查询</h1>
 
     <div class="label-row">
       <label>作品号：</label>
@@ -283,7 +283,7 @@
 
     <button id="btn_confirm" onclick="step1(event)">确认查询</button>
 
-    <div id="result" class="info"><div class="inner">请输入作品号和读者号，查询您的订阅情况。</div></div>
+    <div id="result" class="info"><div class="inner">请输入作品号和读者号，进行查询。</div></div>
 
     <div id="upload_area" class="section">
       <div class="file-picker" id="file_picker">
@@ -375,7 +375,7 @@
       el.className = (type || 'info');
     }
     function resetResult() {
-      showResult('请输入作品号和读者号，查询您的订阅情况。', 'info');
+      showResult('请输入作品号和读者号，进行查询。', 'info');
     }
 
     function formatDateTime(isoStr) {
@@ -596,7 +596,7 @@
 
         if (existing.status === 'pending') {
           showResult(
-            '已于 ' + formatDateTime(existing.created_at) + ' 提交，请勿重复操作。请明日 18 点以后再次查询。',
+            '已于 ' + formatDateTime(existing.created_at) + ' 提交，请勿重复操作。请明日 18:00 以后再次查询。',
             'info'
           );
           return;
@@ -628,7 +628,7 @@
             reupload_area.style.display = 'block';
             reupload_area.dataset.recordId = existing.id;
             showResult(
-              '抱歉，订阅结果存在异常。如有疑问，请后台联系，或：<br>' +
+              '抱歉，订阅结果存在异常。如有疑问，请联系后台，或：<br>' +
               '①<a class="link" onclick="backToQuery(\'reupload\')">点击此处修改作品号或读者号重新查询</a>。<br>' +
               '②重新上传订阅截图，<a class="link" onclick="showExample(event)">点击查看截图示例</a>。',
               'error'
