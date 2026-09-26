@@ -622,7 +622,8 @@
           else threshold = (novel.total_chapters - 1) / novel.total_chapters;
 
           if (existing.rate !== null && existing.rate >= threshold) {
-            showResult('谢谢支持。', 'success');
+            const msg = novel.success_message || '谢谢支持。';
+            showResult(msg, 'success');
           } else {
             lockInputs();
             reupload_area.style.display = 'block';
