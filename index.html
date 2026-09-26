@@ -364,7 +364,6 @@
     const VALID_DAYS = 7;
     const READER_ID_REGEX = /^\d+-\d{2}$/;
 
-    // 末尾补句号
     function backLink(target) {
       return '如需修改作品号或读者号，<a class="link" onclick="backToQuery(\'' + target + '\')">点击此处返回修改</a>。';
     }
@@ -570,6 +569,19 @@
 
         showResult('查询中……', 'loading');
 
+        // 黑名单检查：用纯数字账号（去掉 -XX 后缀）比对
+        const accountId = reader_id.split('-')[0];
+        const { data: black } = await client
+          .from('blacklist')
+          .select('reader_id')
+          .eq('reader_id', accountId)
+          .maybeSingle();
+
+        if (black) {
+          showResult('抱歉，系统错误，无法查询。', 'error');
+          return;
+        }
+
         const { data: novel } = await client
           .from('novels').select('*')
           .eq('novel_id', novel_id).eq('enabled', true).maybeSingle();
@@ -643,7 +655,7 @@
           return;
         }
 
-        showResult('抱歉，存在异常。如有疑问，请后台联系。', 'error');
+        showResult('抱歉，存在异常。如有疑问，请联系后台。', 'error');
       } finally {
         const uploadShown = document.getElementById('upload_area').style.display === 'block';
         const reuploadShown = document.getElementById('reupload_area').style.display === 'block';
