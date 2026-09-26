@@ -618,8 +618,13 @@
           }
 
           let threshold;
-          if (novel.type === 'finished') threshold = 1.0;
-          else threshold = (novel.total_chapters - 1) / novel.total_chapters;
+          if (novel.threshold !== null && novel.threshold !== undefined) {
+            threshold = Number(novel.threshold);
+          } else if (novel.type === 'finished') {
+            threshold = 1.0;
+          } else {
+            threshold = (novel.total_chapters - 1) / novel.total_chapters;
+          }
 
           if (existing.rate !== null && existing.rate >= threshold) {
             const msg = novel.success_message || '谢谢支持。';
