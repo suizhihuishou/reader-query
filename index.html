@@ -608,7 +608,7 @@
 
         if (existing.status === 'pending') {
           showResult(
-            '已于 ' + formatDateTime(existing.created_at) + ' 提交，请勿重复操作。请明日 18:00 以后再次查询。',
+            '已于 ' + formatDateTime(existing.created_at) + ' 提交，请勿重复操作。请明日 18:00 以后再次查询（有效期7天）。',
             'info'
           );
           return;
@@ -709,7 +709,7 @@
         }
 
         document.getElementById('upload_area').style.display = 'none';
-        showResult('您的信息已登记，请明日 18 点以后再次查询。', 'success');
+        showResult('您的信息已登记，请明日 18:00 以后再次查询（有效期7天）。', 'success');
       } finally {
         btn.disabled = false;
       }
@@ -762,7 +762,7 @@
         }
 
         document.getElementById('reupload_area').style.display = 'none';
-        showResult('已重新登记，请明日 18 点以后再查询。', 'success');
+        showResult('已重新登记，请明日 18:00 以后再查询（有效期7天）。', 'success');
       } finally {
         btn.disabled = false;
       }
