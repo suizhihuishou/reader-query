@@ -73,7 +73,8 @@
       border-color: #e5ece7;
       cursor: not-allowed;
     }
-    input[type="text"].invalid {
+    input[type="text"].invalid,
+    input[type="email"].invalid {
       border-color: #e07a5f;
       background: #fff8f6;
       box-shadow: 0 0 0 3px rgba(224, 122, 95, 0.15);
@@ -332,7 +333,8 @@
 
     <div id="email_area" class="section">
       <p class="section-tip">📧 填写邮箱，结果将发送到您的邮箱（可选）：</p>
-      <input type="email" id="email_input" placeholder="example@qq.com">
+      <input type="email" id="email_input" placeholder="example@qq.com"
+             onblur="validateEmail()" oninput="clearEmailError()">
       <button id="btn_email" onclick="submitEmail(event)">提交邮箱</button>
       <button class="secondary" onclick="skipEmail()">暂不填写，稍后回来查看</button>
     </div>
@@ -375,6 +377,7 @@
     const ALLOWED_TYPES = ['image/jpeg', 'image/png'];
     const VALID_DAYS = 7;
     const READER_ID_REGEX = /^\d+-\d{2}$/;
+    const EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
     let currentRecordId = null;
 
@@ -421,6 +424,25 @@
     }
     function clearReaderIdError() {
       document.getElementById('reader_id').classList.remove('invalid');
+    }
+
+    function validateEmail() {
+      const input = document.getElementById('email_input');
+      const value = input.value.trim();
+      if (!value) {
+        input.classList.remove('invalid');
+        return;
+      }
+      if (!EMAIL_REGEX.test(value)) {
+        input.classList.add('invalid');
+        showResult('邮箱格式不正确，请检查后重新填写。', 'error');
+      } else {
+        input.classList.remove('invalid');
+        resetResult();
+      }
+    }
+    function clearEmailError() {
+      document.getElementById('email_input').classList.remove('invalid');
     }
 
     function showErrorWithDetail(message, errMsg, backTarget) {
@@ -480,6 +502,7 @@
       currentRecordId = null;
       resetResult();
       document.getElementById('reader_id').classList.remove('invalid');
+      document.getElementById('email_input').classList.remove('invalid');
       document.getElementById('btn_confirm').disabled = false;
       unlockInputs();
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -552,9 +575,6 @@
         const { data: black } = await client.from('blacklist').select('reader_id').eq('reader_id', accountId).maybeSingle();
         if (black) { showResult('抱歉，此读者号暂时无法查询。如有疑问，请后台联系。', 'error'); return; }
 
-        const { data: novel } = await client.from('novels').select('*').eq('novel_id', novel_id).eq('enabled', true).maybeSingle();
-        if (!novel) { showResult('抱歉，此书未开通。', 'error'); return; }
-
         const { data: existing } = await client.from('queries').select('*').eq('novel_id', novel_id).eq('reader_id', reader_id).maybeSingle();
 
         if (!existing) {
@@ -565,6 +585,11 @@
             '如作品号或读者号填写有误，<a class="link" onclick="backToQuery(\'upload\')">点击此处返回修改</a>。',
             'info'
           );
+          return;
+        }
+
+        if (existing.status === 'not_supported') {
+          showResult('抱歉，该书籍未收录。如有疑问，请后台联系。', 'error');
           return;
         }
 
@@ -590,6 +615,12 @@
               showResult('您的登记已过期，请重新上传订阅截图。<br>如需修改作品号或读者号，<a class="link" onclick="backToQuery(\'reupload\')">点击此处返回修改</a>。', 'info');
               return;
             }
+          }
+
+          const { data: novel } = await client.from('novels').select('*').eq('novel_id', novel_id).maybeSingle();
+          if (!novel) {
+            showResult('抱歉，该书籍未收录。如有疑问，请后台联系。', 'error');
+            return;
           }
 
           let threshold;
@@ -722,8 +753,9 @@
       btn.disabled = true;
       try {
         const email = document.getElementById('email_input').value.trim();
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          showResult('请输入有效的邮箱地址。', 'error');
+        if (!email || !EMAIL_REGEX.test(email)) {
+          document.getElementById('email_input').classList.add('invalid');
+          showResult('邮箱格式不正确，请检查后重新填写。', 'error');
           return;
         }
         if (!currentRecordId) {
