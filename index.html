@@ -47,7 +47,7 @@
       text-decoration: underline;
       cursor: pointer;
     }
-    input[type="text"], input[type="email"] {
+    input[type="text"] {
       width: 100%;
       padding: 12px 14px;
       font-size: 16px;
@@ -58,7 +58,7 @@
       transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
       margin-bottom: 16px;
     }
-    input[type="text"]:focus, input[type="email"]:focus {
+    input[type="text"]:focus {
       border-color: #6fbf8a;
       background: #fff;
       box-shadow: 0 0 0 3px rgba(111, 191, 138, 0.15);
@@ -73,8 +73,7 @@
       border-color: #e5ece7;
       cursor: not-allowed;
     }
-    input[type="text"].invalid,
-    input[type="email"].invalid {
+    input[type="text"].invalid {
       border-color: #e07a5f;
       background: #fff8f6;
       box-shadow: 0 0 0 3px rgba(224, 122, 95, 0.15);
@@ -101,31 +100,12 @@
       cursor: not-allowed;
       transform: none;
     }
-    button.secondary {
-      background: #fff;
-      color: #5a7a65;
-      border: 1px solid #d8e8dd;
-      margin-top: 8px;
-    }
-    button.secondary:hover:not(:disabled) {
-      background: #f5faf6;
-      color: #2e7d52;
-      border-color: #7ed09a;
-      box-shadow: none;
-      transform: none;
-    }
 
     .section {
       display: none;
       margin-top: 20px;
       padding-top: 20px;
       border-top: 1px dashed #dfeee4;
-    }
-    .section-tip {
-      font-size: 13px;
-      color: #5a7a65;
-      margin: 0 0 12px;
-      line-height: 1.6;
     }
     .file-picker {
       display: flex;
@@ -330,14 +310,6 @@
       </div>
       <button id="btn_reupload" onclick="reupload(event)">重新登记</button>
     </div>
-
-    <div id="email_area" class="section">
-      <p class="section-tip">📧 填写邮箱，结果将发送到您的邮箱（可选）：</p>
-      <input type="email" id="email_input" placeholder="example@qq.com"
-             onblur="validateEmail()" oninput="clearEmailError()">
-      <button id="btn_email" onclick="submitEmail(event)">提交邮箱</button>
-      <button class="secondary" onclick="skipEmail()">暂不填写，稍后回来查看</button>
-    </div>
   </div>
 
   <div id="example_modal" class="modal" onclick="closeModal('example_modal')">
@@ -377,9 +349,6 @@
     const ALLOWED_TYPES = ['image/jpeg', 'image/png'];
     const VALID_DAYS = 7;
     const READER_ID_REGEX = /^\d+-\d{2}$/;
-    const EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
-
-    let currentRecordId = null;
 
     function backLink(target) {
       return '如需修改作品号或读者号，<a class="link" onclick="backToQuery(\'' + target + '\')">点击此处返回修改</a>。';
@@ -426,25 +395,6 @@
       document.getElementById('reader_id').classList.remove('invalid');
     }
 
-    function validateEmail() {
-      const input = document.getElementById('email_input');
-      const value = input.value.trim();
-      if (!value) {
-        input.classList.remove('invalid');
-        return;
-      }
-      if (!EMAIL_REGEX.test(value)) {
-        input.classList.add('invalid');
-        showResult('邮箱格式不正确，请检查后重新填写。', 'error');
-      } else {
-        input.classList.remove('invalid');
-        resetResult();
-      }
-    }
-    function clearEmailError() {
-      document.getElementById('email_input').classList.remove('invalid');
-    }
-
     function showErrorWithDetail(message, errMsg, backTarget) {
       showResult(
         message + '。' + backLink(backTarget) +
@@ -485,7 +435,6 @@
     function hideAllSections() {
       document.getElementById('upload_area').style.display = 'none';
       document.getElementById('reupload_area').style.display = 'none';
-      document.getElementById('email_area').style.display = 'none';
     }
 
     function backToQuery(which) {
@@ -499,10 +448,8 @@
         document.getElementById('re_preview_wrap').style.display = 'none';
         document.getElementById('re_file_picker').style.display = 'flex';
       }
-      currentRecordId = null;
       resetResult();
       document.getElementById('reader_id').classList.remove('invalid');
-      document.getElementById('email_input').classList.remove('invalid');
       document.getElementById('btn_confirm').disabled = false;
       unlockInputs();
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -556,7 +503,6 @@
         const readerInput = document.getElementById('reader_id');
 
         hideAllSections();
-        currentRecordId = null;
         unlockInputs();
         resetResult();
         readerInput.classList.remove('invalid');
@@ -571,10 +517,12 @@
 
         showResult('查询中……', 'loading');
 
+        // 黑名单
         const accountId = reader_id.split('-')[0];
         const { data: black } = await client.from('blacklist').select('reader_id').eq('reader_id', accountId).maybeSingle();
         if (black) { showResult('抱歉，此读者号暂时无法查询。如有疑问，请后台联系。', 'error'); return; }
 
+        // 查记录
         const { data: existing } = await client.from('queries').select('*').eq('novel_id', novel_id).eq('reader_id', reader_id).maybeSingle();
 
         if (!existing) {
@@ -594,14 +542,7 @@
         }
 
         if (existing.status === 'pending') {
-          if (existing.email) {
-            showResult('已提交，请勿重复操作。结果将发送至 ' + existing.email + '。请明日 18:00 后再查询。', 'info');
-          } else {
-            currentRecordId = existing.id;
-            document.getElementById('email_area').style.display = 'block';
-            document.getElementById('email_input').value = '';
-            showResult('已提交，请勿重复操作。可填写邮箱接收结果，或明日 18:00 后再查询。', 'info');
-          }
+          showResult('已提交，请勿重复操作。请明日 18:00 后再查询。', 'info');
           return;
         }
 
@@ -654,8 +595,7 @@
       } finally {
         const anyShown =
           document.getElementById('upload_area').style.display === 'block' ||
-          document.getElementById('reupload_area').style.display === 'block' ||
-          document.getElementById('email_area').style.display === 'block';
+          document.getElementById('reupload_area').style.display === 'block';
         btn.disabled = anyShown;
       }
     }
@@ -680,11 +620,11 @@
         const { data: urlData } = client.storage.from('screenshots').getPublicUrl(fileName);
         const validUntil = new Date(Date.now() + VALID_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
-        const { data: inserted, error: dbErr } = await client.from('queries').insert({
+        const { error: dbErr } = await client.from('queries').insert({
           novel_id, reader_id,
           screenshot_url: urlData.publicUrl,
           valid_until: validUntil
-        }).select().single();
+        });
 
         if (dbErr) {
           if (dbErr.message.includes('duplicate')) {
@@ -696,10 +636,7 @@
         }
 
         document.getElementById('upload_area').style.display = 'none';
-        currentRecordId = inserted.id;
-        document.getElementById('email_area').style.display = 'block';
-        document.getElementById('email_input').value = '';
-        showResult('您的信息已登记。可填写邮箱接收结果，或明日 18:00 后再查询。', 'success');
+        showResult('您的信息已登记，请明日 18:00 后再查询。', 'success');
       } finally {
         btn.disabled = false;
       }
@@ -739,43 +676,10 @@
         if (dbErr) { showErrorWithDetail('重新登记失败', dbErr.message, 'reupload'); return; }
 
         document.getElementById('reupload_area').style.display = 'none';
-        currentRecordId = recordId;
-        document.getElementById('email_area').style.display = 'block';
-        document.getElementById('email_input').value = '';
-        showResult('已重新登记。可填写邮箱接收结果，或明日 18:00 后再查询。', 'success');
+        showResult('已重新登记，请明日 18:00 后再查询。', 'success');
       } finally {
         btn.disabled = false;
       }
-    }
-
-    async function submitEmail(event) {
-      const btn = event.target;
-      btn.disabled = true;
-      try {
-        const email = document.getElementById('email_input').value.trim();
-        if (!email || !EMAIL_REGEX.test(email)) {
-          document.getElementById('email_input').classList.add('invalid');
-          showResult('邮箱格式不正确，请检查后重新填写。', 'error');
-          return;
-        }
-        if (!currentRecordId) {
-          showResult('系统错误，请刷新页面重试。', 'error');
-          return;
-        }
-
-        const { error } = await client.from('queries').update({ email: email }).eq('id', currentRecordId);
-        if (error) { showResult('邮箱保存失败：' + error.message, 'error'); return; }
-
-        document.getElementById('email_area').style.display = 'none';
-        showResult('已登记，结果将发送至 ' + email + '。请明日 18:00 后再查询。', 'success');
-      } finally {
-        btn.disabled = false;
-      }
-    }
-
-    function skipEmail() {
-      document.getElementById('email_area').style.display = 'none';
-      showResult('已登记，请明日 18:00 后再查询。', 'success');
     }
   </script>
 </body>
