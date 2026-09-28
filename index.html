@@ -47,7 +47,7 @@
       text-decoration: underline;
       cursor: pointer;
     }
-    input[type="text"] {
+    input[type="text"], input[type="email"] {
       width: 100%;
       padding: 12px 14px;
       font-size: 16px;
@@ -58,16 +58,16 @@
       transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
       margin-bottom: 16px;
     }
-    input[type="text"]:focus {
+    input[type="text"]:focus, input[type="email"]:focus {
       border-color: #6fbf8a;
       background: #fff;
       box-shadow: 0 0 0 3px rgba(111, 191, 138, 0.15);
     }
-    input[type="text"]::placeholder {
+    input::placeholder {
       color: #b8c9be;
       font-size: 14px;
     }
-    input[type="text"]:disabled {
+    input:disabled {
       background: #f5f7f5;
       color: #999;
       border-color: #e5ece7;
@@ -100,12 +100,31 @@
       cursor: not-allowed;
       transform: none;
     }
+    button.secondary {
+      background: #fff;
+      color: #5a7a65;
+      border: 1px solid #d8e8dd;
+      margin-top: 8px;
+    }
+    button.secondary:hover:not(:disabled) {
+      background: #f5faf6;
+      color: #2e7d52;
+      border-color: #7ed09a;
+      box-shadow: none;
+      transform: none;
+    }
 
     .section {
       display: none;
       margin-top: 20px;
       padding-top: 20px;
       border-top: 1px dashed #dfeee4;
+    }
+    .section-tip {
+      font-size: 13px;
+      color: #5a7a65;
+      margin: 0 0 12px;
+      line-height: 1.6;
     }
     .file-picker {
       display: flex;
@@ -192,25 +211,11 @@
       display: flex;
       align-items: flex-start;
     }
-    #result > .inner {
-      width: 100%;
-    }
-    #result.info {
-      background: #eefaf2;
-      color: #2e7d52;
-    }
-    #result.success {
-      background: #e8f8ee;
-      color: #1f7a45;
-    }
-    #result.error {
-      background: #fff4f0;
-      color: #c0503a;
-    }
-    #result.loading {
-      background: #f5faf6;
-      color: #5a7a65;
-    }
+    #result > .inner { width: 100%; }
+    #result.info { background: #eefaf2; color: #2e7d52; }
+    #result.success { background: #e8f8ee; color: #1f7a45; }
+    #result.error { background: #fff4f0; color: #c0503a; }
+    #result.loading { background: #f5faf6; color: #5a7a65; }
     #result a.link {
       color: inherit;
       text-decoration: underline;
@@ -324,6 +329,13 @@
       </div>
       <button id="btn_reupload" onclick="reupload(event)">重新登记</button>
     </div>
+
+    <div id="email_area" class="section">
+      <p class="section-tip">📧 填写邮箱，结果将发送到您的邮箱（可选）：</p>
+      <input type="email" id="email_input" placeholder="example@qq.com">
+      <button id="btn_email" onclick="submitEmail(event)">提交邮箱</button>
+      <button class="secondary" onclick="skipEmail()">暂不填写，稍后回来查看</button>
+    </div>
   </div>
 
   <div id="example_modal" class="modal" onclick="closeModal('example_modal')">
@@ -363,6 +375,8 @@
     const ALLOWED_TYPES = ['image/jpeg', 'image/png'];
     const VALID_DAYS = 7;
     const READER_ID_REGEX = /^\d+-\d{2}$/;
+
+    let currentRecordId = null;
 
     function backLink(target) {
       return '如需修改作品号或读者号，<a class="link" onclick="backToQuery(\'' + target + '\')">点击此处返回修改</a>。';
@@ -418,10 +432,7 @@
       );
     }
     function escapeHtml(s) {
-      return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
     function toggleDetail(link) {
       const d = document.getElementById('err_detail');
@@ -431,17 +442,9 @@
       link.textContent = showing ? '点击此处显示详细错误信息' : '点击此处隐藏详细错误信息';
     }
 
-    function showModal(id) {
-      document.getElementById(id).classList.add('show');
-    }
-    function closeModal(id) {
-      document.getElementById(id).classList.remove('show');
-    }
-
-    function showExample(e) {
-      if (e) e.stopPropagation();
-      showModal('example_modal');
-    }
+    function showModal(id) { document.getElementById(id).classList.add('show'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+    function showExample(e) { if (e) e.stopPropagation(); showModal('example_modal'); }
     function openImageModal(src) {
       if (!src) return;
       document.getElementById('image_modal_img').src = src;
@@ -457,18 +460,24 @@
       document.getElementById('reader_id').disabled = false;
     }
 
+    function hideAllSections() {
+      document.getElementById('upload_area').style.display = 'none';
+      document.getElementById('reupload_area').style.display = 'none';
+      document.getElementById('email_area').style.display = 'none';
+    }
+
     function backToQuery(which) {
+      hideAllSections();
       if (which === 'upload') {
-        document.getElementById('upload_area').style.display = 'none';
         document.getElementById('screenshot').value = '';
         document.getElementById('preview_wrap').style.display = 'none';
         document.getElementById('file_picker').style.display = 'flex';
       } else if (which === 'reupload') {
-        document.getElementById('reupload_area').style.display = 'none';
         document.getElementById('reupload_file').value = '';
         document.getElementById('re_preview_wrap').style.display = 'none';
         document.getElementById('re_file_picker').style.display = 'flex';
       }
+      currentRecordId = null;
       resetResult();
       document.getElementById('reader_id').classList.remove('invalid');
       document.getElementById('btn_confirm').disabled = false;
@@ -485,11 +494,9 @@
       const previewName = document.getElementById(previewNameId);
 
       picker.addEventListener('click', () => fileInput.click());
-
       fileInput.addEventListener('change', e => {
         const file = e.target.files[0];
         if (!file) return;
-
         if (!ALLOWED_TYPES.includes(file.type)) {
           showResult('只支持 jpg 或 png 格式的图片，请重新选择。' + backLink(backTarget), 'error');
           fileInput.value = '';
@@ -500,7 +507,6 @@
           fileInput.value = '';
           return;
         }
-
         previewImg.src = URL.createObjectURL(file);
         previewName.textContent = file.name;
         previewWrap.style.display = 'block';
@@ -511,56 +517,29 @@
     function removeFile(inputId, previewWrapId) {
       document.getElementById(inputId).value = '';
       document.getElementById(previewWrapId).style.display = 'none';
-
-      if (inputId === 'screenshot') {
-        document.getElementById('file_picker').style.display = 'flex';
-      } else if (inputId === 'reupload_file') {
-        document.getElementById('re_file_picker').style.display = 'flex';
-      }
+      if (inputId === 'screenshot') document.getElementById('file_picker').style.display = 'flex';
+      else if (inputId === 'reupload_file') document.getElementById('re_file_picker').style.display = 'flex';
     }
 
-    bindUpload({
-      pickerId: 'file_picker',
-      fileInputId: 'screenshot',
-      previewWrapId: 'preview_wrap',
-      previewImgId: 'preview_img',
-      previewNameId: 'preview_name',
-      backTarget: 'upload'
-    });
-    bindUpload({
-      pickerId: 're_file_picker',
-      fileInputId: 'reupload_file',
-      previewWrapId: 're_preview_wrap',
-      previewImgId: 're_preview_img',
-      previewNameId: 're_preview_name',
-      backTarget: 'reupload'
-    });
+    bindUpload({ pickerId: 'file_picker', fileInputId: 'screenshot', previewWrapId: 'preview_wrap', previewImgId: 'preview_img', previewNameId: 'preview_name', backTarget: 'upload' });
+    bindUpload({ pickerId: 're_file_picker', fileInputId: 'reupload_file', previewWrapId: 're_preview_wrap', previewImgId: 're_preview_img', previewNameId: 're_preview_name', backTarget: 'reupload' });
 
     async function step1(event) {
       const btn = event.target;
       btn.disabled = true;
-
       try {
         const novel_id = document.getElementById('novel_id').value.trim();
         const reader_id = document.getElementById('reader_id').value.trim();
         const readerInput = document.getElementById('reader_id');
-        const upload_area = document.getElementById('upload_area');
-        const reupload_area = document.getElementById('reupload_area');
 
-        upload_area.style.display = 'none';
-        reupload_area.style.display = 'none';
+        hideAllSections();
+        currentRecordId = null;
         unlockInputs();
         resetResult();
         readerInput.classList.remove('invalid');
 
-        if (!novel_id) {
-          showResult('请填写作品号。', 'error');
-          return;
-        }
-        if (!reader_id) {
-          showResult('请填写读者号。', 'error');
-          return;
-        }
+        if (!novel_id) { showResult('请填写作品号。', 'error'); return; }
+        if (!reader_id) { showResult('请填写读者号。', 'error'); return; }
         if (!READER_ID_REGEX.test(reader_id)) {
           readerInput.classList.add('invalid');
           showResult('读者号格式不正确，应为“数字-两位数字”，例如：1234567-08。', 'error');
@@ -569,35 +548,18 @@
 
         showResult('查询中……', 'loading');
 
-        // 黑名单检查：用纯数字账号（去掉 -XX 后缀）比对
         const accountId = reader_id.split('-')[0];
-        const { data: black } = await client
-          .from('blacklist')
-          .select('reader_id')
-          .eq('reader_id', accountId)
-          .maybeSingle();
+        const { data: black } = await client.from('blacklist').select('reader_id').eq('reader_id', accountId).maybeSingle();
+        if (black) { showResult('抱歉，此读者号暂时无法查询。如有疑问，请后台联系。', 'error'); return; }
 
-        if (black) {
-          showResult('抱歉，系统错误，无法查询。', 'error');
-          return;
-        }
+        const { data: novel } = await client.from('novels').select('*').eq('novel_id', novel_id).eq('enabled', true).maybeSingle();
+        if (!novel) { showResult('抱歉，此书未开通。', 'error'); return; }
 
-        const { data: novel } = await client
-          .from('novels').select('*')
-          .eq('novel_id', novel_id).eq('enabled', true).maybeSingle();
-
-        if (!novel) {
-          showResult('抱歉，此书未开通。', 'error');
-          return;
-        }
-
-        const { data: existing } = await client
-          .from('queries').select('*')
-          .eq('novel_id', novel_id).eq('reader_id', reader_id).maybeSingle();
+        const { data: existing } = await client.from('queries').select('*').eq('novel_id', novel_id).eq('reader_id', reader_id).maybeSingle();
 
         if (!existing) {
           lockInputs();
-          upload_area.style.display = 'block';
+          document.getElementById('upload_area').style.display = 'block';
           showResult(
             '请上传订阅截图，<a class="link" onclick="showExample(event)">点击查看截图示例</a>。<br>' +
             '如作品号或读者号填写有误，<a class="link" onclick="backToQuery(\'upload\')">点击此处返回修改</a>。',
@@ -607,10 +569,14 @@
         }
 
         if (existing.status === 'pending') {
-          showResult(
-            '已于 ' + formatDateTime(existing.created_at) + ' 提交，请勿重复操作。请明日 18:00 以后再次查询（有效期7天）。',
-            'info'
-          );
+          if (existing.email) {
+            showResult('已提交，请勿重复操作。结果将发送至 ' + existing.email + '。请明日 18:00 后再查询。', 'info');
+          } else {
+            currentRecordId = existing.id;
+            document.getElementById('email_area').style.display = 'block';
+            document.getElementById('email_input').value = '';
+            showResult('已提交，请勿重复操作。可填写邮箱接收结果，或明日 18:00 后再查询。', 'info');
+          }
           return;
         }
 
@@ -619,12 +585,9 @@
             const validUntil = new Date(existing.valid_until);
             if (validUntil < new Date()) {
               lockInputs();
-              reupload_area.style.display = 'block';
-              reupload_area.dataset.recordId = existing.id;
-              showResult(
-                '您的登记已过期，请重新上传订阅截图。<br>如需修改作品号或读者号，<a class="link" onclick="backToQuery(\'reupload\')">点击此处返回修改</a>。',
-                'info'
-              );
+              document.getElementById('reupload_area').style.display = 'block';
+              document.getElementById('reupload_area').dataset.recordId = existing.id;
+              showResult('您的登记已过期，请重新上传订阅截图。<br>如需修改作品号或读者号，<a class="link" onclick="backToQuery(\'reupload\')">点击此处返回修改</a>。', 'info');
               return;
             }
           }
@@ -643,10 +606,11 @@
             showResult(msg, 'success');
           } else {
             lockInputs();
-            reupload_area.style.display = 'block';
-            reupload_area.dataset.recordId = existing.id;
+            document.getElementById('reupload_area').style.display = 'block';
+            document.getElementById('reupload_area').dataset.recordId = existing.id;
+            const failHead = novel.message_fail || '抱歉，订阅结果存在异常。如有疑问，请联系后台';
             showResult(
-              '抱歉，订阅结果存在异常。如有疑问，请联系后台，或：<br>' +
+              failHead + '，或：<br>' +
               '①<a class="link" onclick="backToQuery(\'reupload\')">点击此处修改作品号或读者号重新查询</a>。<br>' +
               '②重新上传订阅截图，<a class="link" onclick="showExample(event)">点击查看截图示例</a>。',
               'error'
@@ -655,11 +619,13 @@
           return;
         }
 
-        showResult('抱歉，存在异常。如有疑问，请联系后台。', 'error');
+        showResult('抱歉，存在异常。如有疑问，请后台联系。', 'error');
       } finally {
-        const uploadShown = document.getElementById('upload_area').style.display === 'block';
-        const reuploadShown = document.getElementById('reupload_area').style.display === 'block';
-        btn.disabled = uploadShown || reuploadShown;
+        const anyShown =
+          document.getElementById('upload_area').style.display === 'block' ||
+          document.getElementById('reupload_area').style.display === 'block' ||
+          document.getElementById('email_area').style.display === 'block';
+        btn.disabled = anyShown;
       }
     }
 
@@ -671,33 +637,23 @@
         const reader_id = document.getElementById('reader_id').value.trim();
         const file = document.getElementById('screenshot').files[0];
 
-        if (!file) {
-          showResult('请先选择截图文件。<br>' + backLink('upload'), 'error');
-          return;
-        }
+        if (!file) { showResult('请先选择截图文件。<br>' + backLink('upload'), 'error'); return; }
 
         showResult('上传中，请稍候……', 'loading');
 
         const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
         const fileName = `${novel_id}_${reader_id}_${Date.now()}.${ext}`;
-        const { error: uploadErr } = await client.storage
-          .from('screenshots').upload(fileName, file);
+        const { error: uploadErr } = await client.storage.from('screenshots').upload(fileName, file);
+        if (uploadErr) { showErrorWithDetail('上传失败', uploadErr.message, 'upload'); return; }
 
-        if (uploadErr) {
-          showErrorWithDetail('上传失败', uploadErr.message, 'upload');
-          return;
-        }
-
-        const { data: urlData } = client.storage
-          .from('screenshots').getPublicUrl(fileName);
-
+        const { data: urlData } = client.storage.from('screenshots').getPublicUrl(fileName);
         const validUntil = new Date(Date.now() + VALID_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
-        const { error: dbErr } = await client.from('queries').insert({
+        const { data: inserted, error: dbErr } = await client.from('queries').insert({
           novel_id, reader_id,
           screenshot_url: urlData.publicUrl,
           valid_until: validUntil
-        });
+        }).select().single();
 
         if (dbErr) {
           if (dbErr.message.includes('duplicate')) {
@@ -709,7 +665,10 @@
         }
 
         document.getElementById('upload_area').style.display = 'none';
-        showResult('您的信息已登记，请明日 18:00 以后再次查询（有效期7天）。', 'success');
+        currentRecordId = inserted.id;
+        document.getElementById('email_area').style.display = 'block';
+        document.getElementById('email_input').value = '';
+        showResult('您的信息已登记。可填写邮箱接收结果，或明日 18:00 后再查询。', 'success');
       } finally {
         btn.disabled = false;
       }
@@ -722,10 +681,7 @@
         const recordId = document.getElementById('reupload_area').dataset.recordId;
         const file = document.getElementById('reupload_file').files[0];
 
-        if (!file) {
-          showResult('请先选择新的截图文件。<br>' + backLink('reupload'), 'error');
-          return;
-        }
+        if (!file) { showResult('请先选择新的截图文件。<br>' + backLink('reupload'), 'error'); return; }
 
         showResult('上传中，请稍候……', 'loading');
 
@@ -734,17 +690,10 @@
         const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
         const fileName = `${novel_id}_${reader_id}_${Date.now()}.${ext}`;
 
-        const { error: uploadErr } = await client.storage
-          .from('screenshots').upload(fileName, file);
+        const { error: uploadErr } = await client.storage.from('screenshots').upload(fileName, file);
+        if (uploadErr) { showErrorWithDetail('上传失败', uploadErr.message, 'reupload'); return; }
 
-        if (uploadErr) {
-          showErrorWithDetail('上传失败', uploadErr.message, 'reupload');
-          return;
-        }
-
-        const { data: urlData } = client.storage
-          .from('screenshots').getPublicUrl(fileName);
-
+        const { data: urlData } = client.storage.from('screenshots').getPublicUrl(fileName);
         const validUntil = new Date(Date.now() + VALID_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
         const { error: dbErr } = await client.from('queries').update({
@@ -756,16 +705,45 @@
           updated_at: new Date().toISOString()
         }).eq('id', recordId);
 
-        if (dbErr) {
-          showErrorWithDetail('重新登记失败', dbErr.message, 'reupload');
-          return;
-        }
+        if (dbErr) { showErrorWithDetail('重新登记失败', dbErr.message, 'reupload'); return; }
 
         document.getElementById('reupload_area').style.display = 'none';
-        showResult('已重新登记，请明日 18:00 以后再查询（有效期7天）。', 'success');
+        currentRecordId = recordId;
+        document.getElementById('email_area').style.display = 'block';
+        document.getElementById('email_input').value = '';
+        showResult('已重新登记。可填写邮箱接收结果，或明日 18:00 后再查询。', 'success');
       } finally {
         btn.disabled = false;
       }
+    }
+
+    async function submitEmail(event) {
+      const btn = event.target;
+      btn.disabled = true;
+      try {
+        const email = document.getElementById('email_input').value.trim();
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          showResult('请输入有效的邮箱地址。', 'error');
+          return;
+        }
+        if (!currentRecordId) {
+          showResult('系统错误，请刷新页面重试。', 'error');
+          return;
+        }
+
+        const { error } = await client.from('queries').update({ email: email }).eq('id', currentRecordId);
+        if (error) { showResult('邮箱保存失败：' + error.message, 'error'); return; }
+
+        document.getElementById('email_area').style.display = 'none';
+        showResult('已登记，结果将发送至 ' + email + '。请明日 18:00 后再查询。', 'success');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function skipEmail() {
+      document.getElementById('email_area').style.display = 'none';
+      showResult('已登记，请明日 18:00 后再查询。', 'success');
     }
   </script>
 </body>
